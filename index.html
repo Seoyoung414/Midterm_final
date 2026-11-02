@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多多益善 Society</title>
+  <!-- Pretendard & Bebas Neue 폰트 로드 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Pretendard Variable", sans-serif; font-weight: 400; }
+    body, html { width: 100vw; height: 100vh; overflow: hidden; background: #0000FF; color: #FFF; }
+    #webcam { display: none; }
+    
+    /* Scramble Text Canvas Background Layer */
+    #scramble-bg {
+      position: absolute;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    #canvas3d, #grid2d-canvas, #single-cam-canvas { width: 100vw; height: 100vh; display: block; position: relative; z-index: 1; }
+
+    /* 디폴트 히어로 타이포그래피 ("YOU ARE THE MEDIA") */
+    #hero-title {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 10vw;
+      color: #FF2A2A;
+      text-transform: uppercase;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 10;
+      line-height: 0.8;
+      letter-spacing: -2px;
+      user-select: none;
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+      text-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+    }
+
+    #hero-title.hidden {
+      opacity: 0;
+      transform: translate(-50%, -55%) scale(0.95);
+    }
+
+    /* 화면 해상도 대응 반응형 타이포 */
+    @media (max-width: 1920px) { #hero-title { font-size: 8vw; } }
+
+    /* 2D Grid Mode Overlay */
+    #grid2d-container { 
+      position: absolute; inset: 0; display: none; z-index: 100; background: #0000FF; cursor: pointer;
+    }
+    #grid2d-canvas { transform: scaleX(-1); }
+
+    /* 2D 최우측 최하단 통합 플로팅 컨트롤 HUD 패널 */
+    #grid2d-controls-hud {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 120;
+      display: none;
+      align-items: center;
+      gap: 14px;
+      background: rgba(0, 0, 80, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 40px;
+      padding: 8px 18px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      pointer-events: auto;
+    }
+
+    #tower-exit-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    #tower-exit-icon:hover {
+      transform: scale(1.15);
+    }
+    #tower-exit-icon svg {
+      width: 100%;
+      height: 100%;
+      fill: #FFFFFF;
+    }
+
+    /* 리셋 버튼 스타일 */
+    #reset-btn {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.25s ease;
+      margin: 0 2px;
+    }
+    #reset-btn:hover {
+      transform: scale(1.2) rotate(-60deg);
+    }
+    #reset-btn svg {
+      width: 100%;
+      height: 100%;
+      fill: none;
+      stroke: #FFFFFF;
+    }
+
+    /* 2D 슬라이더 컨트롤 스타일 */
+    #slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #cam-count-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 130px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.4);
+      outline: none;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+    #cam-count-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(0,0,0,0.5);
+    }
+    #cam-count-slider::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      cursor: pointer;
+      border: none;
+    }
+    #cam-count-label {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: bold;
+      color: #FFFFFF;
+      min-width: 38px;
+      user-select: none;
+    }
+
+    /* Single Webcam Overlay */
+    #single-cam-container {
+      position: absolute; inset: 0; display: none; z-index: 150;
+      background: #0000FF; justify-content: center; align-items: center;
+    }
+    #single-cam-box {
+      width: 640px; height: 480px; max-width: 90vw; max-height: 80vh;
+      background: #000; border: none; transform: scaleX(-1); cursor: pointer;
+    }
+
+    /* 커스텀 레드 아이 커서 */
+    #custom-cursor { 
+      position: fixed; pointer-events: none; z-index: 9999; display: none; 
+      transform: translate(-50%, -50%); align-items: center; justify-content: center;
+    }
+
+    #loading-screen { position: fixed; inset: 0; background: #0000FF; display: flex; justify-content: center; align-items: center; z-index: 200; transition: opacity 0.5s; }
+    .loading-bar-track { width: 180px; height: 2px; background: rgba(255, 255, 255, 0.2); overflow: hidden; position: relative; }
+    .loading-bar-fill { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: #FFF; transition: width 0.2s; }
+  </style>
+
+  <script type="importmap">
+    { 
+      "imports": { 
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js", 
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" 
+      } 
+    }
+  </script>
+</head>
+<body>
+  <video id="webcam" autoplay playsinline></video>
+
+  <!-- 백그라운드 오디오 객체 -->
+  <audio id="bgm1" src="bg1.mp3" loop preload="auto"></audio>
+  <audio id="bgm2" src="bg2.mp3" loop preload="auto"></audio>
+
+  <!-- 백그라운드 텍스트 스크램블 레이어 캔버스 -->
+  <canvas id="scramble-bg"></canvas>
+
+  <canvas id="canvas3d"></canvas>
+
+  <div id="hero-title">YOU ARE THE MEDIA</div>
+
+  <!-- 2D 1003 Time-Delay 페이지 -->
+  <div id="grid2d-container">
+    <canvas id="grid2d-canvas"></canvas>
+    
+    <!-- 최우측 최하단 통합 플로팅 컨트롤 HUD (타워 아이콘 + 슬라이더 + 리셋 버튼) -->
+    <div id="grid2d-controls-hud">
+      <div id="slider-container">
+        <input type="range" id="cam-count-slider" min="1" max="1003" value="1003" step="1" />
+        <span id="cam-count-label">1003</span>
+      </div>
+      <div id="reset-btn" title="캡처 및 레드 마스킹 초기화">
+        <svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+      </div>
+      <div id="tower-exit-icon" title="다다익선 타워로 돌아가기">
+        <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="100" width="80" height="12" rx="2" />
+          <rect x="20" y="82" width="60" height="14" rx="2" />
+          <rect x="28" y="66" width="44" height="12" rx="2" />
+          <rect x="35" y="52" width="30" height="10" rx="1.5" />
+          <rect x="40" y="40" width="20" height="9" rx="1.5" />
+          <rect x="44" y="28" width="12" height="8" rx="1" />
+          <line x1="50" y1="28" x2="50" y2="10" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- 단일 웹캠 전용 모드 오버레이 -->
+  <div id="single-cam-container">
+    <canvas id="single-cam-box"></canvas>
+  </div>
+
+  <!-- 커스텀 레드 아이 커서 -->
+  <div id="custom-cursor">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <path d="M1 12C3.5 6.5 7.5 4 12 4C16.5 4 20.5 6.5 23 12C20.5 17.5 16.5 20 12 20C7.5 20 3.5 17.5 1 12Z" stroke="#FF2A2A" stroke-width="1.5" stroke-linecap="square"/>
+      <circle cx="12" cy="12" r="3.5" stroke="#FF2A2A" stroke-width="1.5"/>
+      <circle cx="12" cy="12" r="1" fill="#FF2A2A"/>
+    </svg>
+  </div>
+
+  <div id="loading-screen">
+    <div class="loading-bar-track"><div class="loading-bar-fill" id="loading-bar"></div></div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { ImageSegmenter, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+    const $ = id => document.getElementById(id);
+    const video = $('webcam'), canvas3d = $('canvas3d'), grid2dContainer = $('grid2d-container');
+    const grid2dCanvas = $('grid2d-canvas'), customCursor = $('custom-cursor');
+    const singleCamContainer = $('single-cam-container'), singleCamBox = $('single-cam-box');
+    const heroTitle = $('hero-title'), scrambleBgCanvas = $('scramble-bg');
+    const loadingScreen = $('loading-screen'), loadingBar = $('loading-bar');
+    const controlsHud = $('grid2d-controls-hud'), towerExitIcon = $('tower-exit-icon'), resetBtn = $('reset-btn');
+    const camCountSlider = $('cam-count-slider'), camCountLabel = $('cam-count-label');
+    const bgm1 = $('bgm1'), bgm2 = $('bgm2');
+
+    let is2DMode = false, isSingleCamMode = false, titleDismissed = false;
+    let audioStarted = false;
+    let imageSegmenter = null, isModelLoaded = false, isWebcamReady = false;
+    const TOTAL_CAMS = 1003, frameHistory = [];
+    let activeCamCount = 1003;
+
+    const frozenTiles = {};
+
+    const offCanvas = document.createElement('canvas'); offCanvas.width = 320; offCanvas.height = 240;
+    const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+
+    let scene, camera, renderer, controls, guardTowerMesh;
+    const monitorMeshes = [];
+    const towerTargetObjects = [];
+    
+    let sharedWebcamTexture = null;
+    const raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
+
+    // 1. bg1.mp3, bg2.mp3 동시 신뢰 재생 수복 (볼륨 +10dB 증폭)
+    function initAudio() {
+      if (audioStarted) return;
+      audioStarted = true;
+      
+      [bgm1, bgm2].forEach(audio => {
+        audio.volume = 0.55; // 기존 0.20 대비 약 10dB 증폭
+        audio.currentTime = 0;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.log("Audio play retry required:", err);
+            audioStarted = false;
+          });
+        }
+      });
+    }
+
+    /* --- Scramble Background Text Logic --- */
+    const scrambleCtx = scrambleBgCanvas.getContext('2d');
+    const scrambleChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$#@%&*+=~/<>[]{}?:;";
+    let scrambleCols = 0, scrambleRows = 0;
+    const fontSize = 12;
+    let gridChars = [];
+    let bgFrameSkip = 0;
+
+    const targetPhrases = [
+      "You are pleasant to look at.",
+      "You bring joy to someone.",
+      "Whether you like it or not."
+    ];
+    let phraseIndex = 0;
+    let phraseState = "WAITING"; 
+    let lastPhraseTime = performance.now();
+    let currentPhrasePos = { r: 0, c: 0 };
+    let phraseAlpha = 0;
+    let scrambleProgress = 0;
+
+    function initScrambleBg() {
+      scrambleBgCanvas.width = window.innerWidth;
+      scrambleBgCanvas.height = window.innerHeight;
+      scrambleCols = Math.floor(scrambleBgCanvas.width / (fontSize * 0.7));
+      scrambleRows = Math.floor(scrambleBgCanvas.height / (fontSize * 1.3));
+
+      gridChars = [];
+      for (let r = 0; r < scrambleRows; r++) {
+        const row = [];
+        for (let c = 0; c < scrambleCols; c++) {
+          row.push({
+            char: scrambleChars[Math.floor(Math.random() * scrambleChars.length)],
+            opacity: Math.random() * 0.18 + 0.05
+          });
+        }
+        gridChars.push(row);
+      }
+      triggerNextPhrase();
+    }
+
+    function triggerNextPhrase() {
+      const phrase = targetPhrases[phraseIndex];
+      const maxCol = Math.max(0, scrambleCols - phrase.length - 2);
+      const maxRow = Math.max(0, scrambleRows - 3);
+      currentPhrasePos.r = Math.floor(Math.random() * maxRow) + 1;
+      currentPhrasePos.c = Math.floor(Math.random() * maxCol) + 1;
+      
+      phraseState = "FADING_IN";
+      lastPhraseTime = performance.now();
+      phraseAlpha = 0;
+      scrambleProgress = 0;
+    }
+
+    function updatePhraseSequence(now) {
+      const elapsed = now - lastPhraseTime;
+
+      if (phraseState === "WAITING") {
+        if (elapsed >= 2000) {
+          phraseIndex = (phraseIndex + 1) % targetPhrases.length;
+          triggerNextPhrase();
+        }
+      } else if (phraseState === "FADING_IN") {
+        const duration = 500;
+        phraseAlpha = Math.min(1, elapsed / duration);
+        scrambleProgress = Math.min(1, elapsed / duration);
+        if (elapsed >= duration) {
+          phraseState = "HOLDING";
+          lastPhraseTime = now;
+          phraseAlpha = 1;
+          scrambleProgress = 1;
+        }
+      } else if (phraseState === "HOLDING") {
+        phraseAlpha = 1;
+        scrambleProgress = 1;
+        if (elapsed >= 1000) {
+          phraseState = "FADING_OUT";
+          lastPhraseTime = now;
+        }
+      } else if (phraseState === "FADING_OUT") {
+        const duration = 500;
+        phraseAlpha = Math.max(0, 1 - elapsed / duration);
+        if (elapsed >= duration) {
+          phraseState = "WAITING";
+          lastPhraseTime = now;
+          phraseAlpha = 0;
+        }
+      }
+    }
+
+    function renderScrambleBg() {
+      bgFrameSkip = (bgFrameSkip + 1) % 3;
+      if (bgFrameSkip !== 0) return;
+
+      const now = performance.now();
+      updatePhraseSequence(now);
+
+      scrambleCtx.fillStyle = "#0000FF";
+      scrambleCtx.fillRect(0, 0, scrambleBgCanvas.width, scrambleBgCanvas.height);
+      scrambleCtx.font = `${fontSize}px "Courier New", monospace`;
+
+      const activePhrase = targetPhrases[phraseIndex];
+      const startR = currentPhrasePos.r;
+      const startC = currentPhrasePos.c;
+
+      for (let r = 0; r < scrambleRows; r++) {
+        for (let c = 0; c < scrambleCols; c++) {
+          const item = gridChars[r][c];
+          if (Math.random() < 0.05) {
+            item.char = scrambleChars[Math.floor(Math.random() * scrambleChars.length)];
+          }
+          scrambleCtx.fillStyle = `rgba(255, 255, 255, ${item.opacity})`;
+          scrambleCtx.shadowBlur = 0;
+          scrambleCtx.fillText(item.char, c * fontSize * 0.7, (r + 1) * fontSize * 1.3);
+        }
+      }
+
+      if (phraseState !== "WAITING" && phraseAlpha > 0) {
+        scrambleCtx.save();
+        scrambleCtx.font = `bold ${fontSize + 2}px "Courier New", monospace`;
+        scrambleCtx.shadowColor = "#FF2A2A";
+        scrambleCtx.shadowBlur = 10 * phraseAlpha;
+
+        for (let i = 0; i < activePhrase.length; i++) {
+          const targetChar = activePhrase[i];
+          const charCol = startC + i;
+          const charRow = startR;
+
+          let displayChar = targetChar;
+          if (scrambleProgress < 0.8 && targetChar !== " " && Math.random() > scrambleProgress) {
+            displayChar = scrambleChars[Math.floor(Math.random() * scrambleChars.length)];
+          }
+
+          scrambleCtx.fillStyle = `rgba(255, 42, 42, ${phraseAlpha})`;
+          scrambleCtx.fillText(displayChar, charCol * fontSize * 0.7, (charRow + 1) * fontSize * 1.3);
+        }
+        scrambleCtx.restore();
+      }
+    }
+
+    const startCamPos = new THREE.Vector3(0, 30, 95);  
+    const targetCamPos = new THREE.Vector3(0, 7.5, 23); 
+    const startCamTarget = new THREE.Vector3(0, 10, 0);
+    const finalCamTarget = new THREE.Vector3(0, 11, 0);
+
+    let isZooming = false, zoomProgress = 0;
+
+    function init3D() {
+      initScrambleBg();
+
+      scene = new THREE.Scene();
+      scene.background = null;
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.copy(startCamPos);
+
+      renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true, alpha: true, powerPreference: "high-performance" });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true; controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 + 0.08; controls.target.copy(startCamTarget);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); dirLight.position.set(20, 40, 20);
+      scene.add(dirLight);
+
+      buildDadaikseonAuthentic();
+      buildGuardTower();
+
+      camCountSlider.addEventListener('input', (e) => {
+        activeCamCount = parseInt(e.target.value, 10);
+        camCountLabel.textContent = activeCamCount;
+      });
+
+      // 리셋 버튼 클릭 이벤트 등록
+      resetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        for (let key in frozenTiles) delete frozenTiles[key];
+      });
+
+      window.addEventListener('resize', onResize);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('click', onClick);
+
+      setTimeout(() => { isZooming = true; }, 100);
+    }
+
+    function buildDadaikseonAuthentic() {
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.4 });
+      const boxGeo = new THREE.BoxGeometry(0.68, 0.51, 0.13);
+
+      sharedWebcamTexture = new THREE.CanvasTexture(offCanvas);
+      sharedWebcamTexture.minFilter = THREE.LinearFilter;
+      sharedWebcamTexture.generateMipmaps = false;
+
+      const screenMat = new THREE.MeshBasicMaterial({ map: sharedWebcamTexture });
+      const mats = [bodyMat, bodyMat, bodyMat, bodyMat, screenMat, bodyMat];
+
+      const layersConfig = [
+        { count: 240, radius: 13.5, y: 0.3, tilt: Math.PI / 3.5 },
+        { count: 190, radius: 11.2, y: 1.1, tilt: Math.PI / 5.0 },
+        { count: 160, radius: 9.0,  y: 2.6, tilt: 0 },
+        { count: 130, radius: 7.2,  y: 4.8, tilt: 0 },
+        { count: 100, radius: 5.6,  y: 7.2, tilt: 0 },
+        { count: 70,  radius: 4.2,  y: 9.8, tilt: 0 },
+        { count: 48,  radius: 3.1,  y: 12.6, tilt: 0 },
+        { count: 26,  radius: 2.0,  y: 15.4, tilt: 0 },
+        { count: 12,  radius: 1.1,  y: 18.2, tilt: 0 },
+        { count: 7,   radius: 0.7,  y: 20.0, tilt: 0 }
+      ];
+
+      let created = 0;
+      layersConfig.forEach(layer => {
+        const rows = layer.tilt !== 0 ? 2 : Math.max(1, Math.round(layer.count / (layer.radius * 5.5)));
+        const items = Math.ceil(layer.count / rows);
+
+        for (let r = 0; r < rows; r++) {
+          for (let i = 0; i < items && created < TOTAL_CAMS; i++) {
+            const angle = (i / items) * Math.PI * 2;
+            const mesh = new THREE.Mesh(boxGeo, mats);
+
+            const currY = layer.y + (r * 0.56);
+            const currRad = layer.radius + (layer.tilt !== 0 ? r * 0.7 : 0);
+
+            mesh.position.set(Math.cos(angle) * currRad, currY, Math.sin(angle) * currRad);
+            mesh.lookAt(0, currY, 0);
+            mesh.rotateY(Math.PI);
+
+            if (layer.tilt !== 0) {
+              mesh.rotateX(layer.tilt);
+            }
+
+            scene.add(mesh);
+            monitorMeshes.push(mesh);
+            towerTargetObjects.push(mesh);
+            created++;
+          }
+        }
+      });
+    }
+
+    function buildGuardTower() {
+      guardTowerMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.7, 1.0, 12, 24), 
+        new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 0.2, metalness: 0.8 })
+      );
+      guardTowerMesh.position.set(0, 6.0, 0);
+      scene.add(guardTowerMesh);
+      towerTargetObjects.push(guardTowerMesh);
+    }
+
+    function onResize() {
+      initScrambleBg();
+      camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      grid2dCanvas.width = window.innerWidth; grid2dCanvas.height = window.innerHeight;
+    }
+
+    function dismissTitle() {
+      if (!titleDismissed) {
+        titleDismissed = true;
+        heroTitle.classList.add('hidden');
+      }
+    }
+
+    function onMouseMove(e) {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1; 
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      customCursor.style.left = `${e.clientX}px`; customCursor.style.top = `${e.clientY}px`;
+
+      let showEye = false;
+
+      if (is2DMode) {
+        // 2D 모드: 우측 하단 타워 아이콘 및 리셋 버튼 호버 시 눈 커서 표시
+        const iconRect = towerExitIcon.getBoundingClientRect();
+        const resetRect = resetBtn.getBoundingClientRect();
+        if ((e.clientX >= iconRect.left && e.clientX <= iconRect.right && e.clientY >= iconRect.top && e.clientY <= iconRect.bottom) ||
+            (e.clientX >= resetRect.left && e.clientX <= resetRect.right && e.clientY >= resetRect.top && e.clientY <= resetRect.bottom)) {
+          showEye = true;
+        }
+      } else if (isSingleCamMode) {
+        const rect = singleCamBox.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          showEye = true;
+        }
+      } else if (towerTargetObjects.length > 0) {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(towerTargetObjects, true);
+        showEye = intersects.length > 0;
+      }
+
+      document.body.style.cursor = showEye ? 'none' : 'default';
+      customCursor.style.display = showEye ? 'flex' : 'none';
+    }
+
+    function onClick(e) {
+      initAudio(); 
+      dismissTitle(); 
+
+      if (is2DMode) {
+        // 1. 우측 하단 타워 아이콘 클릭 시 -> 3D 타워 홈으로 복귀
+        const iconRect = towerExitIcon.getBoundingClientRect();
+        if (e.clientX >= iconRect.left && e.clientX <= iconRect.right && e.clientY >= iconRect.top && e.clientY <= iconRect.bottom) {
+          is2DMode = false;
+          grid2dContainer.style.display = 'none';
+          controlsHud.style.display = 'none';
+          document.body.style.cursor = 'default'; 
+          customCursor.style.display = 'none';
+          return;
+        }
+
+        // 2. 컨트롤 HUD 박스 영역 클릭 시 모니터 캡쳐 차단
+        const hudRect = controlsHud.getBoundingClientRect();
+        if (e.clientX >= hudRect.left && e.clientX <= hudRect.right && e.clientY >= hudRect.top && e.clientY <= hudRect.bottom) {
+          return;
+        }
+
+        // 3. 그리드 모니터 클릭 시 해당 타일의 시차 프레임 캡처 & 빨간색 마스킹
+        const cw = window.innerWidth;
+        const ch = window.innerHeight;
+        const cols = activeCamCount === 1 ? 1 : Math.ceil(Math.sqrt(activeCamCount * (16 / 9)));
+        const rows = Math.ceil(activeCamCount / cols);
+        const cellW = cw / cols;
+        const cellH = ch / rows;
+
+        const invX = cw - e.clientX;
+        const col = Math.floor(invX / cellW);
+        const row = Math.floor(e.clientY / cellH);
+
+        const startIndexInRow = cols - Math.min(cols, activeCamCount - row * cols);
+        if (col >= startIndexInRow) {
+          const tileIndex = row * cols + (col - startIndexInRow);
+          if (tileIndex >= 0 && tileIndex < activeCamCount) {
+            if (frozenTiles[tileIndex]) {
+              delete frozenTiles[tileIndex];
+            } else {
+              captureAndRedMaskTile(tileIndex);
+            }
+          }
+        }
+        return;
+      }
+
+      if (isSingleCamMode) {
+        const rect = singleCamBox.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          isSingleCamMode = false;
+          singleCamContainer.style.display = 'none';
+          document.body.style.cursor = 'default'; customCursor.style.display = 'none';
+        }
+        return;
+      }
+
+      // 3D 타워 클릭 시 2D 그리드 진입
+      raycaster.setFromCamera(mouse, camera);
+      const towerHits = raycaster.intersectObjects(towerTargetObjects, true);
+      if (towerHits.length > 0) {
+        is2DMode = true; 
+        grid2dContainer.style.display = 'block';
+        controlsHud.style.display = 'flex';
+        document.body.style.cursor = 'default'; 
+        customCursor.style.display = 'none';
+        onResize();
+        return;
+      }
+    }
+
+    // 3. 시차(Time-delay) 프레임 기반 정밀 캡처 & 레드 마스킹
+    function captureAndRedMaskTile(tileIndex) {
+      if (!frameHistory.length) return;
+      
+      // 해당 타일의 시차 프레임 위치 정밀 계산
+      const historyIdx = Math.floor((tileIndex / Math.max(1, activeCamCount - 1)) * (frameHistory.length - 1));
+      const sourceCanvas = frameHistory[historyIdx] || frameHistory[0];
+
+      const cCanvas = document.createElement('canvas');
+      cCanvas.width = 320;
+      cCanvas.height = 240;
+      const cCtx = cCanvas.getContext('2d');
+      cCtx.drawImage(sourceCanvas, 0, 0, 320, 240);
+
+      const imgData = cCtx.getImageData(0, 0, 320, 240);
+      const data = imgData.data;
+
+      // 흰색 마스킹 픽셀(>=230)을 레드(#FF2A2A)로 전환
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] >= 230 && data[i + 1] >= 230 && data[i + 2] >= 230) {
+          data[i] = 255;     
+          data[i + 1] = 42;  
+          data[i + 2] = 42;  
+        }
+      }
+      cCtx.putImageData(imgData, 0, 0);
+      frozenTiles[tileIndex] = cCanvas;
+    }
+
+    async function setupAIAndWebcam() {
+      loadingBar.style.width = '30%';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+        video.srcObject = stream;
+        video.onloadeddata = () => {
+          isWebcamReady = true; 
+          loadingBar.style.width = '100%';
+          setTimeout(() => { 
+            loadingScreen.style.opacity = '0'; 
+            setTimeout(() => loadingScreen.style.display = 'none', 500); 
+          }, 200);
+        };
+
+        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+        imageSegmenter = await ImageSegmenter.createFromOptions(vision, {
+          baseOptions: { 
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite", 
+            delegate: "GPU" 
+          },
+          runningMode: "VIDEO", 
+          outputCategoryMask: true
+        });
+        isModelLoaded = true;
+      } catch (err) {
+        loadingScreen.style.display = 'none';
+      }
+    }
+
+    let lastVideoTime = -1;
+    function animate() {
+      requestAnimationFrame(animate);
+
+      renderScrambleBg();
+
+      if (isZooming && zoomProgress < 1) {
+        zoomProgress += 0.025;
+        const easeProgress = Math.min(1, zoomProgress);
+        camera.position.lerpVectors(startCamPos, targetCamPos, easeProgress);
+        controls.target.lerpVectors(startCamTarget, finalCamTarget, easeProgress);
+        if (zoomProgress >= 1) isZooming = false;
+      }
+
+      controls.update();
+
+      if (isWebcamReady && video.currentTime !== lastVideoTime) {
+        lastVideoTime = video.currentTime;
+        if (isModelLoaded && imageSegmenter) {
+          imageSegmenter.segmentForVideo(video, performance.now(), res => processFrame(res.categoryMask));
+        } else {
+          processFrameFallback();
+        }
+      }
+
+      if (is2DMode) {
+        render2DGrid();
+      } else if (isSingleCamMode) {
+        renderSingleCam();
+      } else {
+        renderer.render(scene, camera);
+      }
+    }
+
+    function processFrame(categoryMask) {
+      const w = 320;
+      const h = 240;
+
+      offCtx.drawImage(video, 0, 0, w, h);
+      const frame = offCtx.getImageData(0, 0, w, h);
+      const data = frame.data;
+      const mask = categoryMask.getAsUint8Array();
+
+      for (let i = 0; i < mask.length; i++) {
+        if (mask[i] === 0) { 
+          const idx = i * 4; 
+          data[idx] = 255;     
+          data[idx + 1] = 255; 
+          data[idx + 2] = 255; 
+          data[idx + 3] = 255; 
+        }
+      }
+      offCtx.putImageData(frame, 0, 0);
+      
+      if (sharedWebcamTexture) {
+        sharedWebcamTexture.needsUpdate = true;
+      }
+
+      saveHistory();
+    }
+
+    function processFrameFallback() { 
+      offCtx.drawImage(video, 0, 0, 320, 240); 
+      if (sharedWebcamTexture) {
+        sharedWebcamTexture.needsUpdate = true;
+      }
+      saveHistory(); 
+    }
+
+    function saveHistory() {
+      const fc = document.createElement('canvas'); fc.width = 320; fc.height = 240;
+      fc.getContext('2d').drawImage(offCanvas, 0, 0);
+      frameHistory.unshift(fc);
+      if (frameHistory.length > 120) frameHistory.pop();
+    }
+
+    function render2DGrid() {
+      if (!frameHistory.length) return;
+      const ctx = grid2dCanvas.getContext('2d'), cw = grid2dCanvas.width, ch = grid2dCanvas.height;
+      ctx.fillStyle = "#0000FF"; ctx.fillRect(0, 0, cw, ch);
+
+      // 모니터 개수 1일 때 화면 100% 꽉 채우도록 처리
+      const cols = activeCamCount === 1 ? 1 : Math.ceil(Math.sqrt(activeCamCount * (16 / 9)));
+      const rows = Math.ceil(activeCamCount / cols);
+      const cellW = cw / cols;
+      const cellH = ch / rows;
+
+      let count = 0;
+      for (let r = 0; r < rows; r++) {
+        const remaining = activeCamCount - count;
+        if (remaining <= 0) break;
+
+        const rowItems = Math.min(cols, remaining);
+        const startC = cols - rowItems;
+
+        for (let c = startC; c < cols; c++) {
+          const x = c * cellW;
+          const y = r * cellH;
+
+          if (frozenTiles[count]) {
+            ctx.drawImage(frozenTiles[count], x, y, cellW, cellH);
+          } else {
+            const idx = Math.floor((count / Math.max(1, activeCamCount - 1)) * (frameHistory.length - 1));
+            ctx.drawImage(frameHistory[idx] || frameHistory[0], x, y, cellW, cellH);
+          }
+          count++;
+        }
+      }
+    }
+
+    function renderSingleCam() {
+      if (!frameHistory.length) return;
+      const ctx = singleCamBox.getContext('2d');
+      if (singleCamBox.width !== 640) { singleCamBox.width = 640; singleCamBox.height = 480; }
+      ctx.drawImage(frameHistory[0], 0, 0, 640, 480);
+    }
+
+    init3D();
+    setupAIAndWebcam();
+    animate();
+  </script>
+</body>
+</html>
